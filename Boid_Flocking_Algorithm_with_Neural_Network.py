@@ -222,7 +222,7 @@ def display_metrics(screen, font, average_speed, cohesion_measure):
         screen.blit(metrics_surface, (10, HEIGHT - 40 + i * 20))
 
 
-# Main loop
+
 def main():
     global mouse_attraction, show_metrics, enable_predator
 
@@ -235,11 +235,47 @@ def main():
     hidden_size = 5
     output_size = 2  # 2 outputs (x, y direction of the steering force)
 
+    # Create the neural network
     nn = NeuralNetwork(input_size, hidden_size, output_size)
 
+    # Generate boids
     boids = [Boid(random.randint(0, WIDTH), random.randint(0, HEIGHT)) for _ in range(NUM_BOIDS)]
     predator_pos = pygame.Vector2(random.randint(0, WIDTH), random.randint(0, HEIGHT))
 
+    # Training the neural network
+    print("Training the neural network...")
+    inputs = []
+    outputs = []
+
+    # Generate synthetic training data
+    for boid in boids:
+        align_force = boid.align(boids)
+        cohesion_force = boid.cohesion(boids)
+        separation_force = boid.separation(boids)
+
+        input_features = [
+            boid.position.x, boid.position.y,
+            boid.velocity.x, boid.velocity.y,
+            align_force.x, align_force.y,
+            cohesion_force.x, cohesion_force.y,
+            separation_force.x, separation_force.y,
+        ]
+        inputs.append(input_features)
+
+        # Example desired output: steering towards the screen center
+        screen_center = pygame.Vector2(WIDTH / 2, HEIGHT / 2)
+        desired_direction = (screen_center - boid.position).normalize() * MAX_SPEED
+        outputs.append([desired_direction.x, desired_direction.y])
+
+    # Convert to NumPy arrays
+    inputs = np.array(inputs)
+    outputs = np.array(outputs)
+
+    # Train the neural network
+    nn.train(inputs, outputs, epochs=1000, learning_rate=0.1)
+    print("Training completed!")
+
+    # Main loop
     running = True
     while running:
         screen.fill(BLACK)
